@@ -1,0 +1,22 @@
+{
+    'name': 'Module A',
+    'summary': 'Module A Summary',
+    'version': '11.0.1',
+
+    'author': 'Ruchet',
+    'website': 'https://ermd.ru',
+    'license': 'Other proprietary',
+    'icon': '/base_ext/static/description/icon.png',
+
+    'depends': [
+        'module_b',
+    ],
+
+    'data': [
+        'security/model_a_groups.xml',
+        'security/model_a_access.xml',
+        'security/model_a_rules.xml',
+
+        'views/model_a.xml',
+    ],
+}

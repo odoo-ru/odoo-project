@@ -1,0 +1,49 @@
+[project]
+name = "odoo-project"
+dynamic = ["version"]
+description = "Object models for Odoo modules and projects"
+readme = "README.md"
+authors = [
+    { name = "Dmitry Voronin", email = "dimka665@gmail.com" }
+]
+urls.repository = "https://github.com/odoo-ru/odoo-project"
+urls.documentation = "https://odoo-project.readthedocs.org"
+requires-python = ">=3.12"
+dependencies = [
+    "tomlkit>=0.15.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.17.1",
+    "odoo",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "sphinx>=9.1.1",
+    "sphinx-autobuild>=2025.8.25",
+]
+
+[project.scripts]
+odoo-project = "odoo_project:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "odoo_project",
+    "README.md",
+]
+
+[tool.uv]
+preview-features = ["centralized-project-envs"]
+
+[tool.uv.sources]
+odoo = { path = "odoo_20.0.20261018.zip" }
+

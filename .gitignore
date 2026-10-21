@@ -1,0 +1,12 @@
+.*
+!/.github/
+!.editorconfig
+!.gitignore
+!/.coveragerc
+!/.flake8
+!/.pre-commit-config.yaml
+/odoo_*.zip
+
+# Python
+__pycache__/
+/dist/
