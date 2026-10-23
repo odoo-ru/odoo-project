@@ -1711,6 +1711,7 @@ provides-extras = ["ldap"]
 name = "odoo-project"
 source = { editable = "." }
 dependencies = [
+    { name = "attrs" },
     { name = "tomlkit" },
 ]
 
@@ -1727,7 +1728,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tomlkit", specifier = ">=0.15.2" }]
+requires-dist = [
+    { name = "attrs", specifier = ">=26.1.0" },
+    { name = "tomlkit", specifier = ">=0.15.2" },
+]
 
 [package.metadata.requires-dev]
 dev = [

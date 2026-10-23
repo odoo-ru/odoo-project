@@ -88,7 +88,7 @@ class OdooProject:
     def auto_install_modules(self, modules: OdooModuleSet):
         auto_install_modules = OdooModuleSet()
         for module in self.collect_modules(self.modules_paths, exclude=modules.names):
-            if module.auto_install and set(module.depends) <= modules.names:
+            if module.is_auto_install and set(module.depends) <= modules.names:
                 auto_install_modules.add(module)
         return auto_install_modules
 

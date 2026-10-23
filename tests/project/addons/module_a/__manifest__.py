@@ -3,8 +3,8 @@
     'summary': 'Module A Summary',
     'version': '11.0.1',
 
-    'author': 'Ruchet',
-    'website': 'https://ermd.ru',
+    'author': 'Author',
+    'website': 'https://example.com',
     'license': 'Other proprietary',
     'icon': '/base_ext/static/description/icon.png',
 
