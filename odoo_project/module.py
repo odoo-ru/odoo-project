@@ -1,68 +1,40 @@
 import ast
-from collections import ChainMap
 from collections.abc import Iterable
-from functools import cached_property, lru_cache
+from functools import cached_property
 from pathlib import Path
 
+from attrs import define
 
-class PathCacheMeta(type):
-    def __init__(cls, name, bases, dict):
-        super().__init__(name, bases, dict)
-        cls._cache = {}
 
-    def __call__(cls, path, *args, **kwargs):
+class CacheModuleMeta(type):
+    def __init__(cls, what, bases, dict):
+        super().__init__(what, bases, dict)
+        cls._modules_cache = {}
+
+    def __call__(cls, path, *args, cache_module=True, **kwargs):
         path = Path(path).resolve()
 
-        if path in cls._cache:
-            return cls._cache[path]
+        if cache_module and path in cls._modules_cache:
+            return cls._modules_cache[path]
 
         instance = super().__call__(path, *args, **kwargs)
-        cls._cache[path] = instance
+        if cache_module:
+            cls._modules_cache[path] = instance
         return instance
-
-
-class slot_cached_property:
-    """
-    Декоратор functools.cached_property не работает на классах без __dict__.
-    Его нельзя использовать для класса со слотами без __dict__,
-    Класс slot_cached_property кэширует свойство в __slots__.
-    При этом места расходуется в 3 раза меньше, но доступ к кэшу
-    работает в 1.5 раза медленнее cached_property.
-
-    В этом обсуждении есть ещё и такой вариант:
-    https://discuss.python.org/t/extensible-cached-property/105188/17
-
-    Для работы требует наличия в классах слота с именем '_<имя_функции>'.
-    """
-    def __init__(self, func):
-        self.func = func
-        self.slot_name = None
-
-    def __set_name__(self, owner, name):
-        # Автоматически генерируем имя ожидаемого слота при загрузке класса
-        self.slot_name = f'_{name}'
-
-    def __get__(self, instance, owner):
-        # Если обращаются к свойству через класс (например, MyClass.heavy_data)
-        if instance is None:
-            return self
-
-        # Проверяем, инициализирован ли слот.
-        # Если он пустой, Python выбросит исключение AttributeError.
-        try:
-            value = getattr(instance, self.slot_name)
-        except AttributeError:
-            # Вычисляем оригинальную функцию и сохраняем результат в слот
-            value = self.func(instance)
-            setattr(instance, self.slot_name, value)
-
-        return value
 
 
 README_FILE_NAMES = ['README.rst', 'README.md', 'README.txt', 'README']
 STATIC_DESCRIPTION_ICON = 'static/description/icon.png'
 
-class OdooModuleBase:
+
+# Use attrs.define to enable cached_property with slots.
+# https://discuss.python.org/t/extensible-cached-property/105188
+# https://github.com/python-attrs/attrs/pull/1200
+@define(slots=True)
+class OdooModule(metaclass=CacheModuleMeta):
+    path: Path
+    name: str
+
     # Odoo 20.0: _DEFAULT_MANIFEST at odoo/modules/module.py:60:1
     default_info = {
         'name': None,
@@ -111,7 +83,6 @@ class OdooModuleBase:
 
     def __eq__(self, other):
         return self.path == other.path
-        # return self is other
 
     def __hash__(self):
         return self.path.__hash__()
@@ -130,6 +101,7 @@ class OdooModuleBase:
             readme_file_path = self / readme_file_name
             if readme_file_path.is_file():
                 return readme_file_path
+        return None
 
     @cached_property
     def icon(self) -> str:
@@ -163,7 +135,7 @@ class OdooModuleBase:
         auto_install = self.manifest.get('auto_install')
         if auto_install is True:
             return frozenset(self.depends)
-        elif isinstance(auto_install, Iterable):
+        if isinstance(auto_install, Iterable):
             return frozenset(auto_install)
         return frozenset()
 
@@ -178,52 +150,11 @@ class OdooModuleBase:
         if item in self.default_info:
             return self.default_info[item]
 
-        return None
-        raise AttributeError(f'Unknown attribute: {item!r}')
+        raise AttributeError
 
 
-class OdooModule(OdooModuleBase, metaclass=PathCacheMeta):
-    pass
-
-
-class OdooModule_OFF:
-    def data_file_path(self):
-        yield from self.manifest.get('data', [])
-
-
-    def _file_translations(self, po_file_name):
-        from odoo.tools.translate import PoFileReader
-
-        result = {}
-        for subdir in ['i18n_extra', 'i18n']:
-            po_file_path = self / subdir / po_file_name
-            if not po_file_path.exists():
-                continue
-            with po_file_path.open('rb') as f:
-                for translation in PoFileReader(f):
-                    trns = (
-                        translation['type'],
-                        translation['name'],
-                        translation['res_id'],
-                        translation['src'],
-                    )
-                    result[trns] = translation['value']
-
-        return result
-
-    @lru_cache
-    def translations(self, locale_identifier):
-        from babel.core import Locale
-
-        locale = Locale.parse(locale_identifier)
-
-        base_trans = self._file_translations(f'{locale.language}.po')
-        if not locale.territory or locale.territory.lower() == locale.language:
-            return base_trans
-
-        # if locale.territory and locale.territory.lower() != locale.language:
-        spec_trans = self._file_translations(f'{locale_identifier}.po')
-        return ChainMap(spec_trans, base_trans)
+SERIE_LENGTH = 2
+FULL_VERSION_MIN_LENGTH = 4
 
 
 def adapt_version(version, serie):
@@ -232,8 +163,7 @@ def adapt_version(version, serie):
     Odoo 20: adapt_version at odoo/modules/module.py:589:1
     """
     version_parts = version.split('.')
-    # if len(version_parts) <= 3 and not version.startswith(serie + '.'):
-    if len(version_parts) <= 3 and not version.startswith(serie):
+    if len(version_parts) < FULL_VERSION_MIN_LENGTH and '.'.join(version_parts[:SERIE_LENGTH]) != serie:
         return f'{serie}.{version}'
     return version
 

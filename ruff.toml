@@ -66,6 +66,10 @@ extend-select = [
     'RUF',      # Ruff
     'TRY',      # tryceratops
 ]
+ignore = [
+    'f-string-in-exception',
+    'builtin-argument-shadowing',
+]
 allowed-confusables = ['с']
 
 [lint.per-file-ignores]
@@ -78,6 +82,9 @@ allowed-confusables = ['с']
 'tests/**' = [
     'implicit-namespace-package',       # no __init__.py
     'assert',
+]
+'**/__manifest__.py' = [
+    'useless-expression',
 ]
 
 [lint.flake8-quotes]

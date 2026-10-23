@@ -1,8 +1,8 @@
 from pathlib import Path
+
 import pytest
 
-from odoo_project.module import OdooModuleBase
-
+from odoo_project.module import OdooModule
 
 
 @pytest.fixture(scope='package')
@@ -12,9 +12,9 @@ def modules_dir():
 
 @pytest.fixture
 def module_a(modules_dir):
-    return OdooModuleBase(modules_dir / 'module_a')
+    return OdooModule(modules_dir / 'module_a', cache_module=False)
 
 
 @pytest.fixture
 def module(modules_dir):
-    return OdooModuleBase(modules_dir / 'module_dumb')
+    return OdooModule(modules_dir / 'module_empty', cache_module=False)
