@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from functools import cached_property
 from pathlib import Path
 
+from attr import Factory
 from attrs import define
 
 
@@ -12,7 +13,10 @@ class CacheModuleMeta(type):
         cls._modules_cache = {}
 
     def __call__(cls, path, *args, cache_module=True, **kwargs):
-        path = Path(path).resolve()
+        if isinstance(path, str):
+            path = Path(path)
+
+        path = path.resolve()
 
         if cache_module and path in cls._modules_cache:
             return cls._modules_cache[path]
@@ -27,51 +31,81 @@ README_FILE_NAMES = ['README.rst', 'README.md', 'README.txt', 'README']
 STATIC_DESCRIPTION_ICON = 'static/description/icon.png'
 
 
+@define(slots=True)
+class Manifest:
+    name: str
+    version: str = '1.0'
+    summary: str | None = None
+    description: str | None = None
+    website: str | None = None
+    license: str = 'LGPL-3'
+    category: str = 'Uncategorized'
+    sequence: int = 100
+    icon: str | None = None
+
+    author: str | None = None
+    contributors: str | None = None
+    maintainer: str | None = None
+
+    installable: bool = True
+    application: bool = False
+    depends: list[str] = Factory(list)
+    auto_install: bool | list[str] = False
+    external_dependencies: dict | None = Factory(dict)
+
+    data: list[str] = Factory(list)
+    demo: list[str] = Factory(list)
+    assets: dict[str: list[str]] = Factory(dict)
+
+    pre_init_hook: str | None = None
+    post_init_hook: str | None = None
+    uninstall_hook: str | None = None
+    post_load: str | None = None
+
+    # Additional from core
+    iap_paid_service: bool = False
+    # l10n_* modules
+    countries: list[str] = Factory(list)
+    # theme_* + hr
+    images: list[str] = Factory(list)
+    # theme_* + website
+    configurator_snippets: dict[str, list[str]] = Factory(dict)
+    # theme_*
+    configurator_snippets_addons: dict[str, dict] = Factory(dict)
+    theme_customizations: dict[str, dict] = Factory(dict)
+    # l10n_cr modules. Incorrect field
+    url: str | None = None
+    # some hr, some pos and other modules
+    other_files: list[str] = Factory(list)
+    # account
+    kpi_providers: list[str] = Factory(list)
+    # web, api_doc, auth_signup
+    bootstrap: bool = False
+    # website
+    new_page_templates: dict[str, dict] = Factory(dict)
+
+    @classmethod
+    def from_file(cls, path: Path):
+        with path.open() as manifest_file:
+            # TODO keep file content
+            manifest_dict = ast.literal_eval(manifest_file.read())
+            return cls(**manifest_dict)
+
+
 # Use attrs.define to enable cached_property with slots.
 # https://discuss.python.org/t/extensible-cached-property/105188
 # https://github.com/python-attrs/attrs/pull/1200
-@define(slots=True)
+@define(
+    slots=True,
+    init=False,
+    repr=False,
+    eq=False,
+)
 class OdooModule(metaclass=CacheModuleMeta):
     path: Path
     name: str
 
-    # Odoo 20.0: _DEFAULT_MANIFEST at odoo/modules/module.py:60:1
-    default_info = {
-        'name': None,
-        'version': '1.0',
-        'summary': None,
-        'description': None,
-        'license': 'LGPL-3',
-        'category': 'Uncategorized',
-        'sequence': 100,
-        'icon': None,
-
-        'author': None,
-        'contributors': None,
-        'maintainer': None,
-        'website': None,
-
-        'installable': True,
-        'application': False,
-        'auto_install': False,
-        'depends': (),
-        'external_dependencies': None,
-
-        'web': False,
-        'to_buy': None,
-
-        'data': (),
-        'demo': (),
-        'assets': None,
-
-        'pre_init_hook': None,
-        'post_init_hook': None,
-        'uninstall_hook': None,
-        'post_load': None,
-    }
-
-    def __init__(self, path: str | Path):
-        path = Path(path)
+    def __init__(self, path: Path):
         if not is_module(path):
             raise ValueError(path)
 
@@ -79,7 +113,7 @@ class OdooModule(metaclass=CacheModuleMeta):
         self.name = path.name
 
     def __repr__(self):
-        return f'OdooModule({self.name!r})'
+        return f'OdooModule({str(self.path)!r})'
 
     def __eq__(self, other):
         return self.path == other.path
@@ -87,16 +121,15 @@ class OdooModule(metaclass=CacheModuleMeta):
     def __hash__(self):
         return self.path.__hash__()
 
-    def __truediv__(self, path):
+    def __truediv__(self, path: Path | str) -> Path:
         return self.path / path
 
     @cached_property
     def manifest(self):
-        with (self.path / '__manifest__.py').open() as manifest_file:
-            return ast.literal_eval(manifest_file.read())
+        return Manifest.from_file(self / '__manifest__.py')
 
     @cached_property
-    def readme(self) -> Path | None:
+    def readme_path(self) -> Path | None:
         for readme_file_name in README_FILE_NAMES:
             readme_file_path = self / readme_file_name
             if readme_file_path.is_file():
@@ -104,9 +137,9 @@ class OdooModule(metaclass=CacheModuleMeta):
         return None
 
     @cached_property
-    def icon(self) -> str:
-        if 'icon' in self.manifest:
-            return self.manifest['icon']
+    def icon_path(self) -> str:
+        if self.manifest.icon:
+            return self.manifest.icon
 
         if (self / STATIC_DESCRIPTION_ICON).is_file():
             return f'/{self.name}/{STATIC_DESCRIPTION_ICON}'
@@ -115,10 +148,9 @@ class OdooModule(metaclass=CacheModuleMeta):
 
     @cached_property
     def depends(self) -> frozenset[str]:
-        depends = self.manifest.get('depends', ())
-        if not depends and self.name != 'base':
-            return frozenset(('base',))
-        return frozenset(depends)
+        if not self.manifest.depends and self.name != 'base':
+            return frozenset({'base'})
+        return frozenset(self.manifest.depends)
 
     @cached_property
     def is_auto_install(self) -> bool:
@@ -127,30 +159,19 @@ class OdooModule(metaclass=CacheModuleMeta):
         Convert it to bool.
         Special case: Install always if auto_install is []
         """
-        auto_install = self['auto_install']
-        return isinstance(auto_install, Iterable) or bool(auto_install)
+        return bool(self.manifest.auto_install) or isinstance(self.manifest.auto_install, Iterable)
 
     @cached_property
     def auto_install_depends(self):
-        auto_install = self.manifest.get('auto_install')
-        if auto_install is True:
-            return frozenset(self.depends)
-        if isinstance(auto_install, Iterable):
-            return frozenset(auto_install)
+        if self.manifest.auto_install is True:
+            return self.depends
+        if isinstance(self.manifest.auto_install, Iterable):
+            return frozenset(self.manifest.auto_install)
         return frozenset()
 
     def installable(self, serie):
         adopted_version = adapt_version(self['version'], serie)
         return self['installable'] and adopted_version.startswith(serie + '.')
-
-    def __getitem__(self, item):
-        if item in self.manifest:
-            return self.manifest[item]
-
-        if item in self.default_info:
-            return self.default_info[item]
-
-        raise AttributeError
 
 
 SERIE_LENGTH = 2
