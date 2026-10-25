@@ -19,5 +19,6 @@ repos:
 exclude: |
     (?x)(
         ^docs/_build/ |
+        ^tests/module/module_ |
         ^tests/project/
     )

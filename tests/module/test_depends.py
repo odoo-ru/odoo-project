@@ -7,5 +7,6 @@ def test_empty_depends(module):
     assert module.depends == {'base'}
 
 
-def test_non_empty_depends(module_a):
-    assert module_a.depends == {'module_b'}
+def test_non_empty_depends(module):
+    module.manifest.depends = ['b']
+    assert module.depends == {'b'}

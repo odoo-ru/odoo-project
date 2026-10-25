@@ -9,5 +9,5 @@ def test_repr(module):
     assert repr(module) == f'OdooModule({str(module.path)!r})'
 
 
-def test_relative_path(module_a):
-    assert module_a / 'models/model.py' == module_a.path / 'models/model.py'
+def test_relative_path(module):
+    assert module / 'models/model.py' == module.path / 'models/model.py'
