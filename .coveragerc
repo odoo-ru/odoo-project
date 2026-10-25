@@ -1,3 +1,7 @@
 [run]
 branch = true
-source = "odoo_project/"
+source =
+    odoo_project/
+
+[report]
+fail_under = 40
