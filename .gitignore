@@ -1,12 +1,22 @@
-.*
-!/.github/
-!.editorconfig
-!.gitignore
-!/.coveragerc
-!/.flake8
-!/.pre-commit-config.yaml
-/odoo_*.zip
+# macOS
+.DS_Store/
+
+# editors
+/.idea/
+
+# direnv
+.envrc
 
 # Python
 __pycache__/
+/.venv
+/.python-version
 /dist/
+/docs/_build/
+/.coverage
+/coverage.xml
+
+# project
+/odoo_*.zip
+/test_*
+/test-
