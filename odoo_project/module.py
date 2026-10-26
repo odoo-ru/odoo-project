@@ -33,6 +33,9 @@ STATIC_DESCRIPTION_ICON = 'static/description/icon.png'
 
 @define(slots=True)
 class Manifest:
+    """
+    This is Manifest docstring.
+    """
     name: str
     version: str = '1.0'
     summary: str | None = None
@@ -62,7 +65,7 @@ class Manifest:
     uninstall_hook: str | None = None
     post_load: str | None = None
 
-    # Additional from core
+    # Odoo 20 modules fields
     iap_paid_service: bool = False
     # l10n_* modules
     countries: list[str] = Factory(list)
@@ -86,6 +89,7 @@ class Manifest:
 
     @classmethod
     def from_file(cls, path: Path):
+        """Reads fields from file"""
         with path.open() as manifest_file:
             # TODO keep file content
             manifest_dict = ast.literal_eval(manifest_file.read())
@@ -102,6 +106,9 @@ class Manifest:
     eq=False,
 )
 class OdooModule(metaclass=CacheModuleMeta):
+    """
+    This is OdooModule docstring.
+    """
     path: Path
     name: str
 
@@ -126,6 +133,7 @@ class OdooModule(metaclass=CacheModuleMeta):
 
     @cached_property
     def manifest(self):
+        """Manifest property"""
         return Manifest.from_file(self / '__manifest__.py')
 
     @cached_property
@@ -138,6 +146,7 @@ class OdooModule(metaclass=CacheModuleMeta):
 
     @cached_property
     def icon_path(self) -> str:
+        """Icon_path"""
         if self.manifest.icon:
             return self.manifest.icon
 

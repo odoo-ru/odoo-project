@@ -12,9 +12,14 @@ __pycache__/
 /.venv
 /.python-version
 /dist/
-/docs/_build/
+
+# coverage
 /.coverage
 /coverage.xml
+
+# docs
+/docs/_build/
+/docs/_site/
 
 # project
 /odoo_*.zip

@@ -17,12 +17,14 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipython>=9.17.1",
+    "mkdocstrings[python]>=1.0.8",
     "odoo",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
     "sphinx>=9.1.1",
     "sphinx-autobuild>=2025.8.25",
+    "zensical>=0.0.72",
 ]
 
 [project.scripts]
