@@ -1,5 +1,9 @@
 line-length = 120
 output-format = 'concise'
+extend-exclude = [
+    'tests/**/module_a/**',
+    'tests/project/addons/**',
+]
 
 [lint]
 preview = true  # to enable RUF105 for ruff ignore comments

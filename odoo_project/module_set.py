@@ -40,4 +40,5 @@ class OdooModuleSet(set):
         'union',
         'copy',
     ]:
+        # ruff:ignore[exec-builtin]
         exec(f'{method} = wrap(set.{method})')

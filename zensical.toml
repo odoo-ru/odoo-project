@@ -13,9 +13,7 @@ site_dir = "site"
 # edit_uri = "edit/main/docs/"
 
 nav = [
-    { "Get started" = "index.md" },
-    { "Markdown in 5min" = "markdown.md" },
-    { "API" = "api.md" },
+    { "OdooModule API" = "odoo-module-api.md" },
 ]
 
 # extra_css = ["stylesheets/extra.css"]
@@ -132,8 +130,4 @@ show_signature_annotations = true
 show_source = false
 #members = true
 members_order = "source"
-filters = [
-#    "!^_[^_]",
-#    "!^__",
-]
 merge_init_into_class = true

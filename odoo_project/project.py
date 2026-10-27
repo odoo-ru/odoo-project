@@ -1,7 +1,6 @@
 import dataclasses
-import os
 from collections.abc import Container, Iterable
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
 
 from odoo_project.config import Config, read_config
@@ -29,11 +28,12 @@ class OdooProject:
     def third_party_module_paths(self):
         return [(self.path / path) for path in self.project_config.third_party_module_dirs]
 
-    @property
-    @lru_cache
+    @cached_property
     def modules_paths(self):
         # In fact core_modules_path is os.path.join(odoo.tools.config['root_path'], 'addons').
         # We don't want to import odoo. It's long one second almost.
+
+        # ruff:ignore[import-outside-top-level]
         import importlib
         odoo_module_spec = importlib.util.find_spec('odoo')
         odoo_module_path = odoo_module_spec.submodule_search_locations[0]
@@ -53,6 +53,7 @@ class OdooProject:
                     modules.add(OdooModule(subdir))
         return modules
 
+    # ruff:ignore[cached-instance-method]
     @lru_cache(maxsize=1024)
     def module(self, module_name):
         for modules_path in self.modules_paths:
@@ -60,7 +61,8 @@ class OdooProject:
             if is_module(module_path):
                 # TODO Cache?
                 return OdooModule(module_path)
-        raise LookupError(f'No module found: {module_name}')
+        msg = f'No module found: {module_name}'
+        raise LookupError(msg)
 
     def find_modules(self, module_names):
         return OdooModuleSet(self.module(module_name) for module_name in module_names)
@@ -122,40 +124,14 @@ class OdooProject:
 
         return result
 
-    @lru_cache
-    def installed_modules_list(self, inversed=False):
+    # @lru_cache
+    def installed_modules_list(self, *, inversed=False):
         modules = self.topologic_dependencies(self.installed_modules)
         if inversed:
             modules = modules.reverse()
         return modules
 
     # =======================================================================
-
-    # def field(self, module_name, model_name, field_name):
-    #     module = self.module(module_name)
-    #     field = Field()
-    #     # for module in module.topological_depends():
-    #     for module in self.topological_depends(module):
-    #         for model_def in module.model_defs(model_name):
-    #             for attr_def in model_def.attr_defs(field_name):
-    #                 field.apply(attr_def)
-    #     return field
-
-    def topological_depends(self, module):
-        # expanded_modules = self.expanded(module)
-        graph = self.module_graph(module)
-        return topologic(graph)
-
-    def module_graph_OFF(self, module_name, processed_modules=set()):
-        edges = []
-        processed_modules.add(module_name)
-        module = self.module(module_name)
-        edges.extend([(module, depend_module) for depend_module in module.depends])
-        for dependency_module_name in module.depends:
-            if dependency_module_name not in processed_modules:
-                edges.extend(self.module_graph(dependency_module_name, processed_modules))
-        return edges
-
     def module_graph(self, module_name):
         processed_modules = set()
 
@@ -172,55 +148,29 @@ class OdooProject:
         return recursive_module_graph(self.module(module_name))
 
     # ============= create db ====================
-    # Copy of click_odoo_contrib/initdb.py:addons_hash
-    def addons_hash(self, module_names, with_demo):
-        h = hashlib.sha1()
-        h.update(f'!demo={int(bool(with_demo))}!'.encode())
-        for module_name in sorted(module_names):
-            module_path = self.module_path(module_name)
-            h.update(module_name.encode('utf8'))
-            for filepath in _walk(module_path):
-                h.update(filepath.encode('utf8'))
-                with Path(os.path.join(module_path, filepath)).open('rb') as f:
-                    h.update(f.read())
-        return h.hexdigest()
-
-    @lru_cache(maxsize=1024)
-    def module_mtime(self, module_name):
-        module_path = self.module_path(module_name)
-        os.path.getmtime
-        return max(Path(file_path).stat().st_mtime for file_path in _walk(module_path))
-
-    def read_dependencies(self, module_names: set):
-        for module_name in module_names:
-            pass
-
     def cache_key(self, module_names, timestamp):
-        module_mtime = {}
-        for module_name in module_names:
-            module_path = self.path(module_name)
+        raise NotImplementedError
 
     # Env
-    # TODO Use functools.cached_property for Python3.8+
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def env(self):
         # Keep ref on generator force close generator later
-        # self._env_generator = self._get_env_generator()
-        # return next(self._env_generator)
         return self._get_env('soma', self.installed_modules)
 
     def _get_env(self, db_name, installed_modules: OdooModule | OdooModuleSet):
+        # ruff:ignore[unsorted-imports]
+        # ruff:ignore[import-outside-top-level]
         from unittest import mock
-
+        # ruff:ignore[import-outside-top-level]
         import odoo
+        # ruff:ignore[import-outside-top-level]
         from odoo_project.database_mock import CursorMock, FakeDatabase
 
         CursorMock.databases[db_name] = FakeDatabase(installed_modules)
 
         with (
             mock.patch('odoo.sql_db.Cursor', CursorMock),
-            odoo.registry(db_name).cursor() as cr
+            odoo.registry(db_name).cursor() as cr,
         ):
             return odoo.api.Environment(cr, odoo.SUPERUSER_ID, {})
 
@@ -230,20 +180,20 @@ class OdooProject:
             translations = module.translations(lang or self.lang)
             if tupl in translations:
                 return translations[tupl]
+        return None
 
     def code_translation(self, file_path, value, lineno=None):
-        # if not file_path.startswith('addons/'):
-        #     file_path = f'addons/{file_path}'
         return self.search_translation(('code', file_path, lineno, value))
 
     def selection(self, model_name, field_name, value, lang=None):
         field = self.env[model_name]._fields[field_name]
-        for selection_value, selection_string in field.selection:
+        for selection_value, _selection_string in field.selection:
             if value == selection_value:
                 break
         else:
-            raise ValueError('Invalid selection value')
-        return self.search_translation(('selection', f'{model_name},{field_name}', '0', selection_string), lang=lang)
+            msg = 'Invalid selection value'
+            raise ValueError(msg)
+        return self.search_translation(('selection', f'{model_name},{field_name}', '0', _selection_string), lang=lang)
 
     def constraint(self, model, value):
         return self.search_translation(('constraint', model, '0', value))
@@ -257,15 +207,18 @@ class OdooProject:
     def model_description(self, model_name, lang=None):
         model = self.env[model_name]
         if not lang:
+            # ruff:ignore[private-member-access]
             return model._description
+        # ruff:ignore[private-member-access]
         xml_id = f'{model._original_module}.model_{model_name.replace(".", "_")}'
         xml_id = None
+        # ruff:ignore[private-member-access]
         return self.model_translation('ir.model', 'name', xml_id, model._description, lang=lang)
 
-    # def field_description(self, module_name, model_name, field_name):
     def field_description(self, model_name, field_name, lang=None):
         field = self.env[model_name]._fields[field_name]
         if not lang:
             return field.string
+        # ruff:ignore[private-member-access]
         xml_id = f'{field._module}.field_{model_name.replace(".", "_")}_{field_name}'
         return self.model_translation('ir.model.fields', 'field_description', xml_id, field.string, lang=lang)
