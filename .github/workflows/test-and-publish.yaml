@@ -15,7 +15,7 @@ jobs:
             -   uses: actions/checkout@v7.0.1
             -   uses: pre-commit/action@v3.0.1
             -   uses: astral-sh/setup-uv@v10.3.2
-            -   run: uv run pytest --cov
+            -   run: uv run --only-group dev pytest --cov
 
     publish:
         if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
