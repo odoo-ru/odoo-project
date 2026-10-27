@@ -7,6 +7,11 @@ from attr import Factory
 from attrs import define
 
 
+class AutoInstallTypeError(TypeError):
+    def __init__(self, value):
+        super().__init__(f'Invalid type of manifest auto_install: {type(value)}')
+
+
 class CacheModuleMeta(type):
     def __init__(cls, what, bases, dict):
         super().__init__(what, bases, dict)
@@ -32,9 +37,14 @@ STATIC_DESCRIPTION_ICON = 'static/description/icon.png'
 
 
 @define(slots=True)
-class Manifest:
+class OdooModuleManifest:
     """
-    This is Manifest docstring.
+    A wrapper around the values of an Odoo module manifest file.
+
+    Designed for convenient access to manifest values
+    without computing certain fields as Odoo does.
+    It exposes all known manifest fields as class attributes.
+    Missing values are automatically populated with defaults, empty lists, empty dicts, or `None`.
     """
     name: str
     version: str = '1.0'
@@ -58,7 +68,7 @@ class Manifest:
 
     data: list[str] = Factory(list)
     demo: list[str] = Factory(list)
-    assets: dict[str: list[str]] = Factory(dict)
+    assets: dict[str, list[str]] = Factory(dict)
 
     pre_init_hook: str | None = None
     post_init_hook: str | None = None
@@ -88,9 +98,9 @@ class Manifest:
     new_page_templates: dict[str, dict] = Factory(dict)
 
     @classmethod
-    def from_file(cls, path: Path):
-        """Reads fields from file"""
-        with path.open() as manifest_file:
+    def from_path(cls, path: Path):
+        """Read values from directory `__manifest__.py` file."""
+        with (path / '__manifest__.py').open() as manifest_file:
             # TODO keep file content
             manifest_dict = ast.literal_eval(manifest_file.read())
             return cls(**manifest_dict)
@@ -107,10 +117,16 @@ class Manifest:
 )
 class OdooModule(metaclass=CacheModuleMeta):
     """
-    This is OdooModule docstring.
+    Represents an Odoo module directory.
+
+    Designed to work with module files, including the manifest, data, and translations.
+    The implementation is independent of the Odoo version, does not import `odoo`,
+    and does not rely on Odoo code.
     """
     path: Path
+    """Module dir path"""
     name: str
+    """Module dir name <small>aka</small> Technical name"""
 
     def __init__(self, path: Path):
         if not is_module(path):
@@ -119,6 +135,13 @@ class OdooModule(metaclass=CacheModuleMeta):
         self.path = path
         self.name = path.name
 
+    def __fspath__(self):
+        return str(self.path)
+
+    def __truediv__(self, path: Path | str) -> Path:
+        """Returns the path relative to the module directory."""
+        return self.path / path
+
     def __repr__(self):
         return f'OdooModule({str(self.path)!r})'
 
@@ -126,18 +149,23 @@ class OdooModule(metaclass=CacheModuleMeta):
         return self.path == other.path
 
     def __hash__(self):
-        return self.path.__hash__()
-
-    def __truediv__(self, path: Path | str) -> Path:
-        return self.path / path
+        return hash(self.path)
 
     @cached_property
-    def manifest(self):
-        """Manifest property"""
-        return Manifest.from_file(self / '__manifest__.py')
+    def manifest(self) -> OdooModuleManifest:
+        """Returns parsed manifest object"""
+        return OdooModuleManifest.from_path(self.path)
 
     @cached_property
     def readme_path(self) -> Path | None:
+        """
+        Returns first of existing files or `None`:
+
+        1. README.rst
+        2. README.md
+        3. README.txt
+        4. README
+        """
         for readme_file_name in README_FILE_NAMES:
             readme_file_path = self / readme_file_name
             if readme_file_path.is_file():
@@ -146,17 +174,27 @@ class OdooModule(metaclass=CacheModuleMeta):
 
     @cached_property
     def icon_path(self) -> str:
-        """Icon_path"""
+        """
+        Returns first available option:
+
+        1. Manifest icon value if it is specified.
+        2. `/<module>/static/description/icon.png` if file exists.
+        3. Fallback to `/base/static/description/icon.png`.
+        """
         if self.manifest.icon:
             return self.manifest.icon
 
         if (self / STATIC_DESCRIPTION_ICON).is_file():
             return f'/{self.name}/{STATIC_DESCRIPTION_ICON}'
 
-        return '/base/' + STATIC_DESCRIPTION_ICON
+        return f'/base/{STATIC_DESCRIPTION_ICON}'
 
     @cached_property
-    def depends(self) -> frozenset[str]:
+    def dependencies(self) -> frozenset[str]:
+        """
+        Returns manifest `depends` wrapped into `frozenset`.
+        Adds `base` if it's empty.
+        """
         if not self.manifest.depends and self.name != 'base':
             return frozenset({'base'})
         return frozenset(self.manifest.depends)
@@ -164,23 +202,33 @@ class OdooModule(metaclass=CacheModuleMeta):
     @cached_property
     def is_auto_install(self) -> bool:
         """
-        Manifest `auto_install` can be True, False or list of depends.
-        Convert it to bool.
-        Special case: Install always if auto_install is []
+        Returns True if manifest `auto_install` is True or Iterable.
         """
-        return bool(self.manifest.auto_install) or isinstance(self.manifest.auto_install, Iterable)
+        if isinstance(self.manifest.auto_install, bool):
+            return self.manifest.auto_install
+        if isinstance(self.manifest.auto_install, Iterable):
+            return True
+        raise AutoInstallTypeError(self.manifest.auto_install)
 
     @cached_property
-    def auto_install_depends(self):
+    def auto_install_depends(self) -> frozenset[str]:
+        """
+        Return frozenset depends on manifest `auto_install` value.
+        If it's True returns `self.dependencies`.
+        If it's False returns empty set.
+        If it's list returns frozenset of its values.
+        """
+        if self.manifest.auto_install is False:
+            return frozenset()
         if self.manifest.auto_install is True:
-            return self.depends
+            return self.dependencies
         if isinstance(self.manifest.auto_install, Iterable):
             return frozenset(self.manifest.auto_install)
-        return frozenset()
+        raise AutoInstallTypeError(self.manifest.auto_install)
 
-    def installable(self, serie):
-        adopted_version = adapt_version(self['version'], serie)
-        return self['installable'] and adopted_version.startswith(serie + '.')
+    def is_installable(self, serie):
+        adopted_version = adapt_version(self.manifest.version, serie)
+        return self.manifest.installable and adopted_version.startswith(serie + '.')
 
 
 SERIE_LENGTH = 2

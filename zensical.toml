@@ -2,7 +2,7 @@
 [project]
 site_url = "https://www.example.com/"
 site_name = "Documentation"
-site_dir = "docs/_site"
+site_dir = "site"
 # site_description = "Your project description"
 # site_author = "Your name"
 
@@ -122,13 +122,18 @@ pymdownx.tabbed.combine_header_slug = true
 pymdownx.tasklist.custom_checkbox = true
 pymdownx.tilde = { }
 
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
 
-# Подключаем расширение для чтения кода из вашей библиотеки
-[project.plugins]
-#mkdocstrings = { handlers = { python = { setup_commands = [
-#    "import sys",
-#    "sys.path.append('.')"  # Указываем путь к исходному коду вашей библиотеки относительно папки docs
-#] } } }
-#[project.plugins]
-mkdocstrings = { handlers = { python = { paths = ["."] } } }
-#mkdocstrings = { handlers = { python = { paths = ["."], watch = ["odoo_project"] } } }
+[project.plugins.mkdocstrings.handlers.python.options]
+show_root_heading = true
+show_signature = true
+show_signature_annotations = true
+show_source = false
+#members = true
+members_order = "source"
+filters = [
+#    "!^_[^_]",
+#    "!^__",
+]
+merge_init_into_class = true

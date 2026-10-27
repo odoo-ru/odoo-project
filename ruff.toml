@@ -91,6 +91,10 @@ allowed-confusables = ['с']
 [lint.flake8-quotes]
 inline-quotes = 'single'
 
+[lint.flake8-errmsg]
+# max string length on Exception raising
+max-string-length = 120
+
 [format]
 preview = true
 quote-style = 'single'

@@ -17,6 +17,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipython>=9.17.1",
+    "manifestoo>=1.1",
     "mkdocstrings[python]>=1.0.8",
     "odoo",
     "pytest>=9.1.1",
