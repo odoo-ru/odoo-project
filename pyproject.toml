@@ -26,9 +26,6 @@ dev = [
     "sphinx-autobuild>=2025.8.25",
     "zensical>=0.0.72",
 ]
-odoo = [
-    "odoo",
-]
 
 [project.scripts]
 odoo-project = "odoo_project:main"
