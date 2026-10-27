@@ -22,7 +22,7 @@ class OdooModuleSet(set):
         return {module.name for module in self}
 
     def depends(self):
-        return set().union(*[module.depends for module in self]) - self.names
+        return set().union(*[module.dependencies for module in self]) - self.names
 
     def sorted(self):
         return sorted(self, key=lambda m: m.name)
