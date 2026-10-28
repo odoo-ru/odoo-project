@@ -2,6 +2,7 @@
 name = "odoo-project"
 dynamic = ["version"]
 description = "Object models for Odoo modules and projects"
+readme = "README.md"
 authors = [
     { name = "Dmitry Voronin", email = "voronin.odoo@gmail.com" }
 ]
