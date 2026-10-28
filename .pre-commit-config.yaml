@@ -16,6 +16,17 @@ repos:
         hooks:
             -   id: actionlint
 
+    # pre-push
+    -   repo: local
+        hooks:
+            -   id: pytest
+                stages: [ pre-push ]
+                name: Запуск моего локального скрипта
+                entry: uv run pytest
+                language: system
+                types: [ python ]
+                always_run: true
+
 exclude: |
     (?x)(
         ^docs/_build/ |
